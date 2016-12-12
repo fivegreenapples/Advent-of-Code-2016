@@ -24,7 +24,7 @@ Your puzzle input is uqwqemis.
 const TEST_INPUT = "abc";
 const INPUT = "uqwqemis";
 
-function run(code) {
+function run(doorId) {
 	function md5(val) {
 		
 		if (!("crypto" in window) || !("subtle" in window.crypto)) {
@@ -65,22 +65,26 @@ function run(code) {
 	}
 
 
-
-
-
-	let i = 0;
-	let password = "";
-	while(password.length < 8) {
+	function tryCode(salt, i) {
 		if (i%100000 === 0) {
-			console.log("i:"+i+", password-so-far:"+password);
+			console.log("i:"+i);
 		}
-		i += 1;
-		if (md5(code+i).slice(0, 5) === "00000") {
-			password += md5(code+i).slice(5, 6);
-		}
+		return md5(salt+i)
+		.then(function(hash){
+			if (hash.slice(0, 5) === "00000") {
+				return hash.slice(5, 6);
+			}
+			return tryCode(salt, i+1);
+		})
 	}
 
-	return password;
+
+	
+	return tryCode(doorId, 0).then(function(character){
+		return character;
+	})
 }
 
-run(INPUT);
+run(TEST_INPUT).then(function(result) {
+	console.log("Password is: "+result)
+});
