@@ -21,6 +21,13 @@ Your puzzle input is uqwqemis.
 
 */
 
+/*********************
+ * 
+ * THIS DOESN"T WORK. MD5 IS NOT SUPPORTED BY Web Crypto
+ * 
+ *********************/
+
+
 const TEST_INPUT = "abc";
 const INPUT = "uqwqemis";
 
