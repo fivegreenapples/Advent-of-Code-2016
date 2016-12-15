@@ -248,18 +248,19 @@ function processState($state, $depth, &$history) {
 	// echo $depth." processState ".$state["hash"]."\n";
 	// get the available moves
 	$moves = movesForState($state);
+	// echo count($moves)."\n";
 	$resultingStates = [];
 	foreach ($moves as $move) {
 		// apply a move to the current state
 		$newState = applyMoveToState($state, $move);
-		// check if we have finished
-		if (isSuccess($newState)) {
-			throw new Exception("\n\nSuccess with ".$newState["hash"]." after ".($depth+1)." steps\n\n");
-		}
 		// check if we've seen it before
 		if (array_key_exists($newState["hash"], $history)) {
 			// echo "Seen:: ".$newState["hash"]." at ".$history[$newState["hash"]]."\n";
 			continue;
+		}
+		// check if we have finished
+		if (isSuccess($newState)) {
+			throw new Exception("\n\nSuccess with ".$newState["hash"]." after ".($depth+1)." steps\n\n");
 		}
 		// if not seen add it to the history
 		$history[$newState["hash"]] = $depth+1;
