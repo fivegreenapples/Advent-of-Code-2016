@@ -117,25 +117,58 @@ F1 E  SG SM PG PM
 
 
 */
+const GENERATORS = 0;
+const MICROCHIPS = 1;
 
-$initialState = [
+const STRONTIUM = 0x1;
+const PLUTONIUM = 0x2;
+const THULIUM   = 0x4;
+const RUTHENIUM = 0x8;
+const CURIUM    = 0x16;
+
+$INTIAL = [
 	"floors" => [
-		1 => ["gennys" => ["S","P"],     "chips" => ["S", "P"]],
-		2 => ["gennys" => ["T","R","C"], "chips" => ["R", "C"]],
-		3 => ["gennys" => [],            "chips" => ["T"]],
-		4 => ["gennys" => [],            "chips" => []]
-		],
-	"elevator" => 1,
+		[
+			GENERATORS => STRONTIUM & PLUTONIUM,
+			MICROCHIPS => STRONTIUM & PLUTONIUM
+		], 
+		[
+			GENERATORS => THULIUM & RUTHENIUM & CURIUM,
+			MICROCHIPS => RUTHENIUM & CURIUM
+		], 
+		[
+			GENERATORS => 0,
+			MICROCHIPS => THULIUM
+		], 
+		[
+			GENERATORS => 0,
+			MICROCHIPS => 0
+		] 
+	],
+	"elevator" => 0
 ];
-// $initialState = [
-// 	"floors" => [
-// 		1 => ["gennys" => [],     "chips" => []],
-// 		2 => ["gennys" => [], "chips" => []],
-// 		3 => ["gennys" => [],            "chips" => ["T"]],
-// 		4 => ["gennys" => ["S","P","T","R","C"],            "chips" => ["S", "P","R", "C"]]
-// 		],
-// 	"elevator" => 3,
-// ];
+
+$TEST_INITIAL = [
+	"floors" => [
+		[
+			GENERATORS => 0,
+			MICROCHIPS => 0
+		], 
+		[
+			GENERATORS => 0,
+			MICROCHIPS => 0
+		], 
+		[
+			GENERATORS => 0,
+			MICROCHIPS => CURIUM
+		], 
+		[
+			GENERATORS => STRONTIUM & PLUTONIUM & THULIUM & RUTHENIUM & CURIUM,
+			MICROCHIPS => STRONTIUM & PLUTONIUM & THULIUM & RUTHENIUM
+		] 
+	],
+	"elevator" => 2
+];
 
 
 function isSafe($floor) {
