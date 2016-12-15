@@ -228,98 +228,98 @@ $TEST_HEIGHT = 3;
 
 
 function show(&$scr) {
-    foreach($scr as $row) {
-        foreach($row as $cell) {
-            if ($cell) echo "#";
-            else echo " ";
-        }
-        echo "\n";
-    }    
-    echo "\n";
+	foreach($scr as $row) {
+		foreach($row as $cell) {
+			if ($cell) echo "#";
+			else echo " ";
+		}
+		echo "\n";
+	}
+	echo "\n";
 }
 function countOn(&$scr) {
-    $count = 0;
-    foreach($scr as $row) {
-        foreach($row as $cell) {
-            if ($cell) $count++;
-        }
-    }
-    return $count;    
+	$count = 0;
+	foreach($scr as $row) {
+		foreach($row as $cell) {
+			if ($cell) $count++;
+		}
+	}
+	return $count;    
 }
 
 function drawRect(&$screen, $w, $h) {
-    echo "drawRect $w $h\n";
-    for($hh=0; $hh<$h; $hh++) {
-        for($ww=0; $ww<$w; $ww++) {
-            $screen[$hh][$ww] = true;
-        }
-    }
+	echo "drawRect $w $h\n";
+	for($hh=0; $hh<$h; $hh++) {
+		for($ww=0; $ww<$w; $ww++) {
+			$screen[$hh][$ww] = true;
+		}
+	}
 }
 function rotateCol(&$screen, $col, $num) {
-    echo "rotateCol $col $num\n";
-    while($num--) {
+	echo "rotateCol $col $num\n";
+	while($num--) {
 
-        $c = [];
-        for ($hh=0; $hh<count($screen); $hh++) {
-            $c[] = $screen[$hh][$col];
-        }
+		$c = [];
+		for ($hh=0; $hh<count($screen); $hh++) {
+			$c[] = $screen[$hh][$col];
+		}
 
-        array_unshift($c, $c[count($c)-1]);
-        array_pop($c);
+		array_unshift($c, $c[count($c)-1]);
+		array_pop($c);
 
-        for ($hh=0; $hh<count($screen); $hh++) {
-            $screen[$hh][$col] = $c[$hh];
-        }
+		for ($hh=0; $hh<count($screen); $hh++) {
+			$screen[$hh][$col] = $c[$hh];
+		}
 
-    }
+	}
 
 }
 function rotateRow(&$screen, $row, $num) {
-    echo "rotateRow $row $num\n";
-    while($num--) {
+	echo "rotateRow $row $num\n";
+	while($num--) {
 
-        $r = $screen[$row];
-        array_unshift($r, $r[count($r)-1]);
-        array_pop($r);
-        $screen[$row] = $r; 
+		$r = $screen[$row];
+		array_unshift($r, $r[count($r)-1]);
+		array_pop($r);
+		$screen[$row] = $r; 
 
-    }
+	}
 }
 function run($instructions, $w, $h) {
 
-    $instructions = array_map("trim", explode("\n", trim($instructions)));
-    $screen = [];
-    for($hh=0; $hh<$h; $hh++) {
-        $screen[] = [];
-        for($ww=0; $ww<$w; $ww++) {
-            $screen[$hh][] = false;
-        }
-    }
+	$instructions = array_map("trim", explode("\n", trim($instructions)));
+	$screen = [];
+	for($hh=0; $hh<$h; $hh++) {
+		$screen[] = [];
+		for($ww=0; $ww<$w; $ww++) {
+			$screen[$hh][] = false;
+		}
+	}
 
-    show($screen);
+	show($screen);
 
-    foreach($instructions as $instruct) {
+	foreach($instructions as $instruct) {
 
-        if (preg_match("/^rect ([0-9]+)x([0-9]+)$/", $instruct, $matches)) {
-            $width = $matches[1];
-            $height = $matches[2];
-            drawRect($screen, $width, $height);
-        } elseif (preg_match("/^rotate row y=([0-9]+) by ([0-9]+)$/", $instruct, $matches)) {
-            $row = $matches[1];
-            $num = $matches[2];
-            rotateRow($screen, $row, $num);
-        } elseif (preg_match("/^rotate column x=([0-9]+) by ([0-9]+)$/", $instruct, $matches)) {
-            $col = $matches[1];
-            $num = $matches[2];
-            rotateCol($screen, $col, $num);
-        } else {
-            die ("\n\nUnhandled instruction: ".$instruct."\n\n");
-        } 
-        show($screen);
+		if (preg_match("/^rect ([0-9]+)x([0-9]+)$/", $instruct, $matches)) {
+			$width = $matches[1];
+			$height = $matches[2];
+			drawRect($screen, $width, $height);
+		} elseif (preg_match("/^rotate row y=([0-9]+) by ([0-9]+)$/", $instruct, $matches)) {
+			$row = $matches[1];
+			$num = $matches[2];
+			rotateRow($screen, $row, $num);
+		} elseif (preg_match("/^rotate column x=([0-9]+) by ([0-9]+)$/", $instruct, $matches)) {
+			$col = $matches[1];
+			$num = $matches[2];
+			rotateCol($screen, $col, $num);
+		} else {
+			die ("\n\nUnhandled instruction: ".$instruct."\n\n");
+		} 
+		show($screen);
 
-    }
+	}
 
-    echo "\n\nNumber of 'on' pixels is: ".countOn($screen)."\n\n";
+	echo "\n\nNumber of 'on' pixels is: ".countOn($screen)."\n\n";
 
 
 }
