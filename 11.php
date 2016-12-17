@@ -124,17 +124,21 @@ const STRONTIUM = 0x1;
 const PLUTONIUM = 0x2;
 const THULIUM   = 0x4;
 const RUTHENIUM = 0x8;
-const CURIUM    = 0x16;
+const CURIUM    = 0x10;
 
-$INTIAL = [
+
+$ALL_METALS = [STRONTIUM,PLUTONIUM,THULIUM,RUTHENIUM,CURIUM];
+
+
+$INITIAL = [
 	"floors" => [
 		[
-			GENERATORS => STRONTIUM & PLUTONIUM,
-			MICROCHIPS => STRONTIUM & PLUTONIUM
+			GENERATORS => STRONTIUM | PLUTONIUM,
+			MICROCHIPS => STRONTIUM | PLUTONIUM
 		], 
 		[
-			GENERATORS => THULIUM & RUTHENIUM & CURIUM,
-			MICROCHIPS => RUTHENIUM & CURIUM
+			GENERATORS => THULIUM | RUTHENIUM | CURIUM,
+			MICROCHIPS => RUTHENIUM | CURIUM
 		], 
 		[
 			GENERATORS => 0,
@@ -163,161 +167,218 @@ $TEST_INITIAL = [
 			MICROCHIPS => CURIUM
 		], 
 		[
-			GENERATORS => STRONTIUM & PLUTONIUM & THULIUM & RUTHENIUM & CURIUM,
-			MICROCHIPS => STRONTIUM & PLUTONIUM & THULIUM & RUTHENIUM
+			GENERATORS => STRONTIUM | PLUTONIUM | THULIUM | RUTHENIUM | CURIUM,
+			MICROCHIPS => STRONTIUM | PLUTONIUM | THULIUM | RUTHENIUM
 		] 
 	],
 	"elevator" => 2
 ];
 
+$SUCCESS_FLOOR = [
+	GENERATORS => array_sum($ALL_METALS),
+	MICROCHIPS => array_sum($ALL_METALS)
+];
 
-function isSafe($floor) {
-	$spareChips = array_diff($floor["chips"], $floor["gennys"]);
-	return empty($spareChips) || empty($floor["gennys"]);
+function isSafe(&$floor) {
+
+	// safe if no generators
+	// or all chips are matched to generators
+	return $floor[GENERATORS] === 0 ||
+	       ($floor[MICROCHIPS] & ($floor[GENERATORS] ^ $floor[MICROCHIPS])) === 0;
+
 }
+
 function isSuccess(&$state) {
-	return empty($state["floors"][1]["gennys"]) &&
-			empty($state["floors"][2]["gennys"]) &&
-			empty($state["floors"][3]["gennys"]) &&
-			empty($state["floors"][1]["chips"]) &&
-			empty($state["floors"][2]["chips"]) &&
-			empty($state["floors"][3]["chips"]);
+	global $SUCCESS_FLOOR;
+	return $state["floors"][3][GENERATORS] === $SUCCESS_FLOOR[GENERATORS] &&
+	       $state["floors"][3][MICROCHIPS] === $SUCCESS_FLOOR[MICROCHIPS];
 }
 
 
-function movesForState(&$state) {
 
-	$elFloor = $state["elevator"];
-	$elevatorContents = [];
-	$moves = [];
-
-	for ($g=0; $g<count($state["floors"][$elFloor]["gennys"]); $g++) {
-		$generator1 = $state["floors"][$elFloor]["gennys"][$g];
-		$elevatorContents[] = ["gennys" => [$generator1], "chips" => []];
-		for ($gg=$g+1; $gg<count($state["floors"][$elFloor]["gennys"]); $gg++) {
-			$generator2 = $state["floors"][$elFloor]["gennys"][$gg];
-			$elevatorContents[] = ["gennys" => [$generator1,$generator2], "chips" => []];
-		}
-		for ($c=0; $c<count($state["floors"][$elFloor]["chips"]); $c++) {
-			$chip = $state["floors"][$elFloor]["chips"][$c];
-			$elevatorContents[] = ["gennys" => [$generator1], "chips" => [$chip]];
+// Calculate all possible moves from all possible floor combinations
+$maxFloorState = array_sum($ALL_METALS);
+$SINGLES_FOR_FLOOR_ITEMS = [];
+$DOUBLES_FOR_FLOOR_ITEMS = [];
+for ($n=0; $n<=$maxFloorState; $n++) {
+	$SINGLES_FOR_FLOOR_ITEMS[$n] = [];
+	$DOUBLES_FOR_FLOOR_ITEMS[$n] = [];
+	foreach($ALL_METALS as $METAL) {
+		if ($n & $METAL) {
+			$SINGLES_FOR_FLOOR_ITEMS[$n][] = $METAL;
+			foreach($ALL_METALS as $METAL2) {
+				if ($METAL !== $METAL2 && $n & $METAL2) {
+					$DOUBLES_FOR_FLOOR_ITEMS[$n][] = $METAL | $METAL2;;
+				}
+			}
 		}
 	}
-	for ($c=0; $c<count($state["floors"][$elFloor]["chips"]); $c++) {
-		$chip1 = $state["floors"][$elFloor]["chips"][$c];
-		$elevatorContents[] = ["gennys" => [], "chips" => [$chip1]];
-		for ($cc=$c+1; $cc<count($state["floors"][$elFloor]["chips"]); $cc++) {
-			$chip2 = $state["floors"][$elFloor]["chips"][$cc];
-			$elevatorContents[] = ["gennys" => [], "chips" => [$chip1,$chip2]];
-		}
-	}
-	foreach ($elevatorContents as $i => $contents) {
-		if (!isSafe($contents)) {
-			continue;
-		}
-		$newElFloor = [
-			"gennys" => array_diff($state["floors"][$elFloor]["gennys"], $contents["gennys"]),
-			"chips"  => array_diff($state["floors"][$elFloor]["chips"],  $contents["chips"])
-		];
-		if (!isSafe($newElFloor)) {
-			continue;
-		}
+	$DOUBLES_FOR_FLOOR_ITEMS[$n] = array_values(array_unique($DOUBLES_FOR_FLOOR_ITEMS[$n]));
+}
 
-		if ($elFloor < 4) {
-			$newDestFloor = [
-				"gennys" => array_merge($state["floors"][$elFloor+1]["gennys"], $contents["gennys"]),
-				"chips"  => array_merge($state["floors"][$elFloor+1]["chips"],  $contents["chips"])
-			]; 
-			if (!isSafe($newDestFloor)) {
+$MOVES = [];
+for ($G=0; $G<=$maxFloorState; $G++) {
+	$MOVES[$G] = [];
+	for ($M=0; $M<=$maxFloorState; $M++) {
+
+		$MOVES[$G][$M] = [];
+
+		// single and double of the same thing is ok
+		$singleGenerators = $SINGLES_FOR_FLOOR_ITEMS[$G];
+		$doubleGenerators = $DOUBLES_FOR_FLOOR_ITEMS[$G];
+		$singleMicrochips = $SINGLES_FOR_FLOOR_ITEMS[$M];
+		$doubleMicrochips = $DOUBLES_FOR_FLOOR_ITEMS[$M];
+		// 1 of G and M must be the same metal
+		// get singles for the available pairs
+		$availablePairs = $SINGLES_FOR_FLOOR_ITEMS[$G & $M];
+
+		// combine everything
+		$elevatorOptions = [];
+		foreach($singleGenerators as $option) {
+			$elevatorOptions[] = [
+				GENERATORS => $option, MICROCHIPS => 0
+			];
+		}
+		foreach($doubleGenerators as $option) {
+			$elevatorOptions[] = [
+				GENERATORS => $option, MICROCHIPS => 0
+			];
+		}
+		foreach($singleMicrochips as $option) {
+			$elevatorOptions[] = [
+				GENERATORS => 0, MICROCHIPS => $option
+			];
+		}
+		foreach($doubleMicrochips as $option) {
+			$elevatorOptions[] = [
+				GENERATORS => 0, MICROCHIPS => $option
+			];
+		}
+		foreach($availablePairs as $option) {
+			$elevatorOptions[] = [
+				GENERATORS => $option, MICROCHIPS => $option
+			];
+		}
+		
+
+		// now apply elevator options to floor state to see if the option is actually isSafe
+		// also check that our elevator option is safe and actually exists
+		foreach($elevatorOptions as $option) {
+			if (!isSafe($option)) throw new Exception("Elevator option not safe! ".json_encode($option));
+			if (($option[GENERATORS] & $G) !== $option[GENERATORS]) throw new Exception("Elevator option generators doesn't exist for floor! $G : ".json_encode($option));
+			if (($option[MICROCHIPS] & $M) !== $option[MICROCHIPS]) throw new Exception("Elevator option microchips doesn't exist for floor! $M : ".json_encode($option));
+
+			$oldFloor = [
+				GENERATORS => $option[GENERATORS] ^ $G,
+				MICROCHIPS => $option[MICROCHIPS] ^ $M
+			];
+			if (!isSafe($oldFloor)) {
 				continue;
 			}
-			$move = [ "elevator" => $elFloor+1, "floors" => [] ];
-			$move["floors"][$elFloor] = $newElFloor;
-			$move["floors"][$elFloor+1] = $newDestFloor;
-			$moves[] = $move;
+
+			$MOVES[$G][$M][] = [
+				"elevator"    => $option,
+				"oldFloor"    => $oldFloor
+			];
+
 		}
-		if ($elFloor > 1) {
-			$newDestFloor = [
-				"gennys" => array_merge($state["floors"][$elFloor-1]["gennys"], $contents["gennys"]),
-				"chips"  => array_merge($state["floors"][$elFloor-1]["chips"],  $contents["chips"])
-			]; 
-			if (!isSafe($newDestFloor)) {
-				continue;
-			}
-			$move = [ "elevator" => $elFloor-1, "floors" => [] ];
-			$move["floors"][$elFloor] = $newElFloor;
-			$move["floors"][$elFloor-1] = $newDestFloor;
-			$moves[] = $move;
-		}
+		
+
 
 	}
-	return $moves;
 }
 
-function applyMoveToState($state, $move) {
-	$state["elevator"] = $move["elevator"];
-	foreach($move["floors"] as $floorNum => $floor) {
-		$state["floors"][$floorNum] = $floor;
+$NEW_FLOORS = [
+	0 => [1],
+	1 => [0,2],
+	2 => [1,3],
+	3 => [2],
+];
+
+function hashState(&$state) {
+	$hash = "";
+	for ($n=0; $n<4; $n++) {
+		$hash .= ($state["floors"][$n][GENERATORS] + ($state["floors"][$n][MICROCHIPS] << 8 ));
+		$hash .= "-"; 
 	}
-	$state["hash"] = hashState($state);
-	return $state;
-}
-
-function hashState($state) {
-	$state = array_intersect_key($state, ["floors"=>1, "elevator"=>1]);
-	sort($state["floors"][1]["gennys"]);
-	sort($state["floors"][2]["gennys"]);
-	sort($state["floors"][3]["gennys"]);
-	sort($state["floors"][4]["gennys"]);
-	sort($state["floors"][1]["chips"]);
-	sort($state["floors"][2]["chips"]);
-	sort($state["floors"][3]["chips"]);
-	sort($state["floors"][4]["chips"]);
-	return md5(serialize($state));
+	$hash .= $state["elevator"];
+	return $hash;
 }
 
 
 function processState($state, $depth, &$history) {
 	// echo $depth." processState ".$state["hash"]."\n";
 	// get the available moves
-	$moves = movesForState($state);
-	// echo count($moves)."\n";
+	global $MOVES, $NEW_FLOORS, $SUCCESS_FLOOR;
+	$currentElevator = $state["elevator"];
+	$currentG = $state["floors"][$currentElevator][GENERATORS];
+	$currentM = $state["floors"][$currentElevator][MICROCHIPS];
+	$moves = $MOVES[$currentG][$currentM];
+
 	$resultingStates = [];
 	foreach ($moves as $move) {
 		// apply a move to the current state
-		$newState = applyMoveToState($state, $move);
-		// check if we've seen it before
-		if (array_key_exists($newState["hash"], $history)) {
-			// echo "Seen:: ".$newState["hash"]." at ".$history[$newState["hash"]]."\n";
-			continue;
+		// we can go up or down in the elevator
+
+		foreach ($NEW_FLOORS[$currentElevator] as $newFloorNumber) {
+			$newFloor = [
+				GENERATORS => $state["floors"][$newFloorNumber][GENERATORS] | $move["elevator"][GENERATORS],
+				MICROCHIPS => $state["floors"][$newFloorNumber][MICROCHIPS] | $move["elevator"][MICROCHIPS]
+			];
+			if (isSafe($newFloor)) {
+				$newState = $state;
+				$newState["elevator"] = $newFloorNumber;
+				$newState["floors"][$currentElevator] = $move["oldFloor"];
+				$newState["floors"][$newFloorNumber] = $newFloor;
+				$hash =  ($newState["floors"][0][GENERATORS] + ($newState["floors"][0][MICROCHIPS] << 8 )) +
+				         (($newState["floors"][1][GENERATORS] < 16) + ($newState["floors"][1][MICROCHIPS] << 24 ));
+				$hash .= "-".(($newState["floors"][2][GENERATORS]) + ($newState["floors"][2][MICROCHIPS] << 8 )) +
+				         (($newState["floors"][3][GENERATORS] < 16) + ($newState["floors"][3][MICROCHIPS] << 24 ));
+				$hash .= "-".$newState["elevator"];
+				// echo $hash."\n";exit();
+				// check if we've seen it before
+				if (array_key_exists($hash, $history)) {
+					// echo "Seen:: ".$hash." at ".$history[$newState["hash"]]."\n";
+				}
+				else {
+					// check if we have finished
+					if ($newState["floors"][3][GENERATORS] === $SUCCESS_FLOOR[GENERATORS] &&
+						$newState["floors"][3][MICROCHIPS] === $SUCCESS_FLOOR[MICROCHIPS]) {
+						throw new Exception("\n\nSuccess with ".$hash." after ".($depth+1)." steps\n\n");
+					}
+					else {
+						// if not seen add it to the history
+						$history[$hash] = $depth+1;
+						// and store
+						$resultingStates[] = $newState;
+					}
+				}
+			}
 		}
-		// check if we have finished
-		if (isSuccess($newState)) {
-			throw new Exception("\n\nSuccess with ".$newState["hash"]." after ".($depth+1)." steps\n\n");
-		}
-		// if not seen add it to the history
-		$history[$newState["hash"]] = $depth+1;
-		// and store
-		$resultingStates[] = $newState;
+		
 	}
 
 	return $resultingStates;
 }
 
-$initialState["hash"] = hashState($initialState);
-$history[$initialState["hash"]] = 0;
+$HISTORY = [];
+$HISTORY[hashState($INITIAL)] = 0;
 
-$statesToProcess = [$initialState];
-$depth = 0;
-while($depth < 1000) {
+try {
+	$statesToProcess = [$INITIAL];
+	$depth = 0;
+	while($depth < 100) {
 
-	echo "Depth ".$depth.", has ".count($statesToProcess)." states to process\n";
+		echo "Depth ".$depth.", has ".count($statesToProcess)." states to process\n";
 
-	$newStatesToProcess = [];
-	foreach ($statesToProcess as $aState) {
-		$newStatesToProcess = array_merge($newStatesToProcess, processState($aState, $depth, $history));
+		$newStatesToProcess = [];
+		foreach ($statesToProcess as $aState) {
+			$newStatesToProcess = array_merge($newStatesToProcess, processState($aState, $depth, $HISTORY));
+		}
+		$depth += 1;
+		$statesToProcess = $newStatesToProcess;
 	}
-	$depth += 1;
-	$statesToProcess = $newStatesToProcess;
+} catch (Exception $e) {
+	echo "\n\n\nFinished: ".$e->getMessage()."\n\n";
 }
 
